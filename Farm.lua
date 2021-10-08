@@ -1,4 +1,5 @@
-local farmSize = 4*5
+local farmSize = {x = 5, y = 10}
+local totalFarmSize = farmSize.x * farmSize.y
 local cropName = "minecraft:wheat"
 local cropMatureAge = 7
 local seedName = "minecraft:wheat_seeds"
@@ -7,16 +8,13 @@ local abort = false
 local farming = false
 local turnRight = false
 
-local moveCount = 0
-local moves = {}
-
-function IsCropMature(blockData)    
-    if blockData.name ~= cropName then 
+function IsCropMature(blockData)
+    if blockData.name ~= cropName then
         print("Crop is not as specified. Please specify crop in prog/Farmer.lua")
         abort = true
-        return false 
+        return false
     end
-    if blockData.state.age ~= cropMatureAge then 
+    if blockData.state.age ~= cropMatureAge then
         print("Crop is not mature... Continuing...")
         return false
     end
@@ -24,81 +22,122 @@ function IsCropMature(blockData)
 end
 
 function EquipSeeds()
-    local currentInfo = turtle.getItemDetail()
-    if currentInfo.name == seedName then return end
-    for i = 1, 16 do 
+    for i = 1, 16 do
         local info = turtle.getItemDetail(i)
-        if info.name == seedName then 
+        if info ~= nil and info.name == seedName then
             turtle.select(i)
-            return
+            return true
         end
-    end        
+    end
+    return false
 end
 
-function TurnOnce()
-    if turnRight then turtle.turnRight()
-    else turtle.turnLeft() end
+function EquipCrop()
+    for i=1, 16 do
+        local info = turtle.getItemDetail(i)
+        if info ~= nil and info.name == cropName then
+            turtle.select(i)
+            return true
+        end
+    end
+    return false
 end
 
-function TurnAround()
-    turtle.turnLeft()
-    turtle.turnLeft()
+function PlantCrop()
+    EquipSeeds()
+    turtle.placeDown()
 end
 
-function SwingAround()
-    TurnOnce()
+function HarvestCrop()
+    isBlock, blockData = turtle.inspectDown()
+    if not isBlock or not IsCropMature(blockData) then
+        return
+    end
+    if not turtle.digDown() then
+        print("Could not dig down. Something might be wrong.")
+        return
+    end
+    turtle.suckDown()
+    PlantCrop()
+end
+
+function Forward()
     turtle.forward()
-    TurnOnce()
-    turtle.forward()
+end
+
+function Turn()
+    if turnRight then
+        turtle.turnRight()
+        Forward()
+        turtle.turnRight()
+    else
+        turtle.turnLeft()
+        Forward()
+        turtle.turnLeft()
+    end
     turnRight = not turnRight
 end
 
-function ForwardOnce()
-    turtle.forward()
-end
-
-function Return()
-    for i=0, moveCount - 1 do
-        local move = moves[i]
-        turnRight = not move.dir
-        move.f()
-    end
-end
-
-function OnFinish()
-    print("Finished harvest. Returning...")
-    TurnAround()
-    ForwardOnce()
-    Return()
-    TurnAround()
-    print("Done!")
-end
-
-local count = 0
-ForwardOnce()
-while not abort and count < farmSize do
-    local isBlock, blockData = turtle.inspectDown()     
-    if not isBlock then
-        SwingAround()
-        moves[moveCount] = { f = SwingAround, dir = not turnRight }
-        moveCount = moveCount + 1
-        isBlock, blockData = turtle.inspectDown()
-    end
-    if isBlock and IsCropMature(blockData) then
-        turtle.digDown()
-        turtle.suckDown()
-        EquipSeeds()
-        turtle.placeDown()
-    end
-    ForwardOnce()
-    moves[moveCount] = { f = ForwardOnce, dir = turnRight }
-    moveCount = moveCount + 1
-    count = count + 1
-    if turtle.getFuelLevel() < 5 then 
-        if not shell.run("Refuel") then
-            print("Fuel is low, please refuel.")
-            abort = true
+function DropHarvest()
+    while EquipCrop() or EquipSeeds() do
+        if not turtle.dropDown() then
+            print("Harvest chest is full. Please empty.")
+            return
         end
     end
 end
-OnFinish()
+
+function Return(x, y)
+    print("Returning...")
+    local isLevel = x % 2 == 0
+    if not isLevel then
+        turtle.turnLeft()
+        turtle.turnLeft()
+        for i=1, y do
+            Forward()
+        end
+    end
+    Forward()
+    turtle.turnLeft()
+    for i=1, farmSize.x - 1 do
+        Forward()
+    end
+    turtle.turnLeft()
+    DropHarvest()
+end
+
+function Refuel()
+    for i=1, 16 do
+        turtle.select(i)
+        if turtle.refuel(1) then
+            i = 17
+        end
+    end
+end
+
+function CheckFuel()
+    if turtle.getFuelLevel() < totalFarmSize then
+        Refuel()
+    end
+end
+
+function Farm()
+    Forward()
+    for x=1, farmSize.x do
+        for y=1, farmSize.y - 1 do
+            CheckFuel()
+            HarvestCrop()
+            Forward()
+            HarvestCrop()
+            print("X" .. x)
+            print("Y" .. y)
+            if x == farmSize.x and y == farmSize.y - 1 then
+                Return(x, y)
+                return
+            end
+        end
+        Turn()
+    end
+end
+
+Farm()

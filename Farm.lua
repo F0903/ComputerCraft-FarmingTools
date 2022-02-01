@@ -107,30 +107,37 @@ function Return(x, y)
 end
 
 function Refuel()
+    local gotFuel = false
     for i=1, 16 do
         turtle.select(i)
         if turtle.refuel(1) then
             i = 17
+            gotFuel = true
         end
     end
+    return gotFuel
 end
 
 function CheckFuel()
-    if turtle.getFuelLevel() < totalFarmSize then
+    if turtle.getFuelLevel() < totalFarmSize + 3 then
         Refuel()
     end
 end
 
 function Farm()
+    if not CheckFuel() then
+        print("Fuel critically low. Please refuel.")
+        return
+    end
+
     Forward()
     for x=1, farmSize.x do
         for y=1, farmSize.y - 1 do
-            CheckFuel()
             HarvestCrop()
             Forward()
             HarvestCrop()
-            print("X" .. x)
-            print("Y" .. y)
+            print("X = " .. x)
+            print("Y = " .. y)
             if x == farmSize.x and y == farmSize.y - 1 then
                 Return(x, y)
                 return

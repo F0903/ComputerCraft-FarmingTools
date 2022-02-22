@@ -120,8 +120,9 @@ end
 
 function CheckFuel()
     if turtle.getFuelLevel() < totalFarmSize + 3 then
-        Refuel()
+        return Refuel()
     end
+    return true
 end
 
 function Farm()

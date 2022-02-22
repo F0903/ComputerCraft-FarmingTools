@@ -107,27 +107,35 @@ function Return(x, y)
 end
 
 function Refuel()
-    local gotFuel = false
     for i=1, 16 do
         turtle.select(i)
         if turtle.refuel(1) then
             i = 17
-            gotFuel = true
+            return true
         end
     end
-    return gotFuel
+    return false
 end
 
-function CheckFuel()
-    if turtle.getFuelLevel() < totalFarmSize + 3 then
-        return Refuel()
+function CheckFuel(attempt)
+    if attempt == nil then attempt = 0 end
+    print("Checking for fuel...")
+    local fuelNeeded = 5 + (totalFarmSize) + (farmSize.y+1 + farmSize.x)
+    local fuelLevel = turtle.getFuelLevel()
+    if fuelLevel < fuelNeeded then
+        Refuel()
+        if attempt < 10 then
+            return CheckFuel(attempt + 1)
+        else
+            return false
+        end
     end
     return true
 end
 
 function Farm()
     if not CheckFuel() then
-        print("Fuel critically low. Please refuel.")
+        print("Fuel is not sufficient for a pass. Please refuel.")
         return
     end
 
